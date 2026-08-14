@@ -170,6 +170,64 @@ function initPixelate() {
   cards.forEach((card) => io.observe(card));
 }
 
+/* ---------- Card tilt ---------- */
+
+// Turns each project card to face the cursor and drags a torchlight highlight
+// along with it. The card's transform reads --rx/--ry and the highlight reads
+// --lx/--ly; all four default to neutral in CSS, so a card that never gets
+// hovered simply sits flat.
+function initCardTilt() {
+  const cards = document.querySelectorAll(".project-card");
+  if (!cards.length || prefersReducedMotion) return;
+
+  // Touch devices fire pointermove only during a tap, which would leave the
+  // card frozen at whatever angle the finger lifted at.
+  if (!window.matchMedia("(hover: hover)").matches) return;
+
+  const MAX_TILT = 7;
+
+  cards.forEach((card) => {
+    let frame = null;
+    let px = 0;
+    let py = 0;
+
+    const apply = () => {
+      frame = null;
+      // Read the rect here rather than in the event: pointermove can fire
+      // several times per displayed frame, and each rect read forces layout.
+      const rect = card.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const x = (px - rect.left) / rect.width - 0.5;
+      const y = (py - rect.top) / rect.height - 0.5;
+
+      // Tilting away from the cursor is what sells depth — the near edge is
+      // the one under the pointer.
+      card.style.setProperty("--rx", `${(-y * MAX_TILT).toFixed(2)}deg`);
+      card.style.setProperty("--ry", `${(x * MAX_TILT).toFixed(2)}deg`);
+      card.style.setProperty("--lx", `${(x * 100 + 50).toFixed(1)}%`);
+      card.style.setProperty("--ly", `${(y * 100 + 50).toFixed(1)}%`);
+    };
+
+    card.addEventListener("pointermove", (e) => {
+      px = e.clientX;
+      py = e.clientY;
+      if (frame === null) frame = requestAnimationFrame(apply);
+    }, { passive: true });
+
+    card.addEventListener("pointerleave", () => {
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+        frame = null;
+      }
+      // Only the angle resets. The highlight position is left where it was so
+      // it fades out in place instead of sliding back to centre as it goes.
+      card.style.setProperty("--rx", "0deg");
+      card.style.setProperty("--ry", "0deg");
+    });
+  });
+}
+
 /* ---------- ASCII wave dividers ---------- */
 
 const RAMP = " .:-=+*#%@";
@@ -333,6 +391,7 @@ export function revealHeroName() {
 export function initKinetic() {
   initReveals();
   initPixelate();
+  initCardTilt();
   initHoverScramble();
   initWaves();
 }

@@ -312,10 +312,11 @@ section {
    it settles into place instead of coasting to a stop. */
 [data-reveal] {
   opacity: 0;
-  transform: perspective(1200px) translate3d(0, 38px, -180px) rotateX(10deg);
+  transform: perspective(1000px) translate3d(0, 56px, -380px) rotateX(17deg);
+  transform-origin: 50% 100%;
   transition:
     opacity 0.55s ease-out,
-    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    transform 1s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: calc(var(--i, 0) * 130ms);
 }
 
@@ -351,16 +352,38 @@ section {
   display: grid;
   grid-template-columns: repeat(var(--cols, 16), 1fr);
   grid-template-rows: repeat(var(--rows, 11), 1fr);
+  /* Gives the cells somewhere to travel toward. Safe here in a way it is not
+     on the scroll container: this is a small, contained, non-sticky element. */
+  perspective: 520px;
 }
 
+/* Lit from the top-left like the rest of the block work, so each cell reads as
+   a solid cube face rather than a flat square. */
 .pixel-overlay span {
-  background: var(--stone-dark);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  background-color: var(--stone-dark);
+  background-image: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.08),
+    transparent 42%,
+    rgba(0, 0, 0, 0.32)
+  );
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.06),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.4);
+  /* Transform and opacity only, so the whole dissolve stays on the compositor
+     and never asks the main thread for a layout. */
+  transition:
+    transform 0.45s cubic-bezier(0.3, 0.9, 0.3, 1),
+    opacity 0.4s ease-out;
 }
 
+/* Blocks tumble off the face of the card toward the viewer instead of simply
+   vanishing. The scale-down is deliberate: it cancels the enlargement that
+   translateZ causes, so a cell never projects outside the card's clip and gets
+   sheared off at the edge on its way out. */
 .pixel-overlay span.gone {
-  background: transparent;
-  box-shadow: none;
+  opacity: 0;
+  transform: translateZ(60px) rotateX(-62deg) rotateZ(7deg) scale(0.55);
 }
 
 /* A torch-colored ring once the last cell clears. Outline is used instead of
@@ -530,8 +553,17 @@ section {
   background: rgba(255, 255, 255, 0.6);
 }
 
+/* The drop shadow collapses along with the travel, so the button reads as
+   being pushed into the page rather than sliding down it. */
 .btn:active {
-  transform: translateY(1px);
+  transform: translateY(3px);
+}
+
+.btn-primary:active {
+  box-shadow:
+    inset 2px 2px 0 var(--bevel-light),
+    inset -2px -2px 0 var(--bevel-dark),
+    0 0 0 var(--stone-dark);
 }
 
 /* Underground the ghost button needs a dark treatment to stay legible. */
@@ -602,19 +634,36 @@ section {
 /* Only slightly translucent: the world should register behind the panels, but
    at 0.82 the moving character field bled through and made body copy hard to
    read. */
+/* Three scales of texture stacked, which is what the flat single-scale version
+   was missing: a vignette for overall form, a fine pixel grain that reads as
+   rock up close, and the ore speckle on top. Each layer needs its own entry in
+   background-size, in the same order. */
 .depth {
   position: relative;
   background-color: rgba(38, 38, 38, 0.94);
   background-image:
+    /* vignette — pulls the edges down so each section reads as a lit space */
+    radial-gradient(ellipse 115% 85% at 50% 45%, transparent 42%, rgba(0, 0, 0, 0.4)),
+    /* fine grain, two offset scales so the pattern never visibly tiles */
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 68%, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px),
+    /* ore speckle */
     radial-gradient(circle at 12% 22%, rgba(111, 216, 224, 0.10) 0 3px, transparent 3px),
     radial-gradient(circle at 78% 14%, rgba(255, 179, 71, 0.09) 0 3px, transparent 3px),
     radial-gradient(circle at 34% 68%, rgba(0, 0, 0, 0.35) 0 4px, transparent 4px),
     radial-gradient(circle at 88% 62%, rgba(0, 0, 0, 0.3) 0 3px, transparent 3px),
     radial-gradient(circle at 58% 40%, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px),
     radial-gradient(circle at 20% 85%, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px);
-  background-size: 140px 140px;
+  background-size:
+    100% 100%,
+    7px 7px,
+    11px 11px,
+    140px 140px, 140px 140px, 140px 140px,
+    140px 140px, 140px 140px, 140px 140px;
   border-top: 4px solid var(--bevel-dark);
-  box-shadow: inset 0 6px 12px -6px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 6px 12px -6px rgba(0, 0, 0, 0.5),
+    inset 0 -40px 60px -50px rgba(0, 0, 0, 0.8);
 }
 
 .depth p {
@@ -631,6 +680,9 @@ section {
   gap: 20px;
 }
 
+/* --rx / --ry are written by kinetic.js from the pointer position, so the card
+   turns to face the cursor. They stay at 0 until something sets them, which is
+   what keeps this inert for keyboard and touch users. */
 .project-card {
   position: relative;
   overflow: hidden;
@@ -643,26 +695,82 @@ section {
     0 4px 0 var(--stone-dark);
   border-radius: 2px;
   padding: 20px;
+  transform:
+    perspective(900px)
+    rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg))
+    translateY(var(--lift, 0px));
+  transition: transform 0.12s ease-out, box-shadow 0.2s ease;
+}
+
+/* Snapping back is slower than tracking is: following the cursor has to feel
+   immediate, but letting go should read as the card settling. */
+.project-card:not(:hover) {
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 
 .project-card:hover {
+  --lift: -4px;
   box-shadow:
     inset 3px 3px 0 var(--bevel-light),
     inset -3px -3px 0 var(--bevel-dark),
     inset 5px 5px 0 rgba(0, 0, 0, 0.15),
     0 0 0 2px var(--torch),
-    0 4px 0 var(--stone-dark);
+    0 10px 0 -2px var(--stone-dark),
+    0 14px 22px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* Torchlight catching the surface, tracking the same pointer as the tilt. It
+   sits under the stone overlay (z-index 5) so a card still buried in rock does
+   not light up early. */
+.project-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(
+    340px circle at var(--lx, 50%) var(--ly, 50%),
+    rgba(255, 179, 71, 0.13),
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.project-card:hover::after {
+  opacity: 1;
 }
 
 .card-thumb {
   position: relative;
   contain: layout paint;
-  height: 110px;
+  height: 124px;
   margin: -4px -4px 14px;
-  background: var(--stone-dark);
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(111, 216, 224, 0.07), transparent 70%),
+    var(--stone-dark);
   border: 1px solid var(--bevel-dark);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 0 26px -6px rgba(0, 0, 0, 0.9);
   overflow: hidden;
+}
+
+/* Scanlines over the ASCII, so the thumbnail reads as a small screen set into
+   the card rather than as flat text on stone. Purely decorative and above the
+   canvas, so it must never take the pointer. */
+.card-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.32) 0 1px,
+    transparent 1px 3px
+  );
+  opacity: 0.55;
 }
 
 .card-top {
@@ -932,4 +1040,16 @@ section {
   .contact-body[data-reveal].in > * { animation: none; }
   .section-head.in h2::before { animation: none; }
   .project-card.materialized { animation: none; }
+
+  /* No pointer tilt, no tumbling blocks, and no travel on the dissolve. The
+     cells still clear, they just do it without moving. */
+  .project-card,
+  .project-card:not(:hover) {
+    transform: none;
+    transition: none;
+  }
+  .project-card::after { display: none; }
+  .pixel-overlay { perspective: none; }
+  .pixel-overlay span { transition: none; }
+  .pixel-overlay span.gone { transform: none; }
 }
