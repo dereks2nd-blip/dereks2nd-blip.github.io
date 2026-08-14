@@ -386,6 +386,17 @@ section {
   transform: translateZ(60px) rotateX(-62deg) rotateZ(7deg) scale(0.55);
 }
 
+/* Applied once a cell has finished leaving. It is already invisible at that
+   point, so this changes nothing on screen — but an opacity:0 element holding a
+   3D transform still sits in the layer tree and gets recomposited on every
+   scroll and every card tilt, and there are 176 of them per card. Taking them
+   out of rendering entirely is the difference between paying for them forever
+   and paying for them only while they move. kinetic.js removes it if the card
+   is re-buried on the way back up. */
+.pixel-overlay span.spent {
+  visibility: hidden;
+}
+
 /* A torch-colored ring once the last cell clears. Outline is used instead of
    box-shadow so it can't clobber the card's bevel. */
 .project-card.materialized {

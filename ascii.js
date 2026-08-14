@@ -69,9 +69,17 @@ export function createAsciiScene(options) {
   const pivot = new THREE.Group();
   scene.add(pivot);
 
-  // preserveDrawingBuffer so readPixels is valid after render within the frame.
-  const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
-  const gl = renderer.getContext();
+  // This canvas is never added to the document — it exists only to be sampled
+  // by readPixels — so every feature that costs something at composite time is
+  // turned off. preserveDrawingBuffer in particular forces the browser into a
+  // slower swap chain to keep contents across frames, and buys nothing here:
+  // the read happens synchronously right after render, in the same frame.
+  const renderer = new THREE.WebGLRenderer({
+    antialias: false,
+    alpha: false,
+    stencil: false,
+    powerPreference: "high-performance",
+  });
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -88,6 +96,10 @@ export function createAsciiScene(options) {
   let cssW = 0;
   let cssH = 0;
   let pixels = null;
+  // The scene is rendered into a target we own rather than the default drawing
+  // buffer, so last frame's result is still there to be read on the next tick.
+  let target = null;
+  let primed = false;
 
   let current = null;
   const setSubject = (builder) => {
@@ -132,6 +144,17 @@ export function createAsciiScene(options) {
     camera.aspect = (cols * charW) / (rows * charH);
     camera.updateProjectionMatrix();
     pixels = new Uint8Array(cols * rows * 4);
+
+    if (target) target.dispose();
+    target = new THREE.WebGLRenderTarget(cols, rows, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      depthBuffer: true,
+      stencilBuffer: false,
+    });
+    // The old target's contents are gone, so there is nothing valid to read
+    // until the next render has filled the new one.
+    primed = false;
   };
   fit();
 
@@ -183,15 +206,43 @@ export function createAsciiScene(options) {
 
   const lastIndex = charSet.length - 1;
 
+  // Brightness byte -> glyph, resolved once up front. The inner loop runs about
+  // fourteen thousand times a frame, so lifting the scale, the round and the
+  // two clamps out of it and into a 256-entry table is worth more than it looks.
+  const GLYPH_FOR_LUM = new Array(256);
+  for (let l = 0; l < 256; l++) {
+    let idx = Math.round((l / 255) * lastIndex);
+    if (idx < 0) idx = 0;
+    else if (idx > lastIndex) idx = lastIndex;
+    GLYPH_FOR_LUM[l] = charSet[idx];
+  }
+
   const paint = () => {
-    if (!pixels || !cols || !rows) return;
+    if (!pixels || !cols || !rows || !target) return;
 
+    // The glyphs drawn this tick come from the render issued on the *previous*
+    // tick, not the one submitted below. readPixels is a synchronisation point:
+    // asking for pixels the GPU has only just been handed makes the CPU sit and
+    // wait for them, which measured at ~2ms a frame here — more than a tenth of
+    // the frame budget, spent doing nothing. A frame later that work is long
+    // since finished and the same read is nearly free. The cost is one frame of
+    // latency on a slowly rotating background, which is not perceptible.
+    if (primed) {
+      renderer.readRenderTargetPixels(target, 0, 0, cols, rows, pixels);
+      drawGlyphs();
+    }
+
+    renderer.setRenderTarget(target);
     renderer.render(scene, camera);
-    gl.readPixels(0, 0, cols, rows, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    renderer.setRenderTarget(null);
+    primed = true;
+  };
 
+  const drawGlyphs = () => {
+    // font and textBaseline are deliberately not set here. Canvas state only
+    // resets when the backing store is resized, and fit() restores it there —
+    // reassigning the font every frame re-runs font matching for nothing.
     ctx.clearRect(0, 0, cssW, cssH);
-    ctx.font = FONT(fontSize);
-    ctx.textBaseline = "top";
     ctx.fillStyle = ink;
 
     for (let y = 0; y < rows; y++) {
@@ -200,11 +251,8 @@ export function createAsciiScene(options) {
       let line = "";
       for (let x = 0; x < cols; x++) {
         const i = (src + x) * 4;
-        const lum = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) / 255;
-        let idx = Math.round(lum * lastIndex);
-        if (idx < 0) idx = 0;
-        else if (idx > lastIndex) idx = lastIndex;
-        line += charSet[idx];
+        const lum = pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114;
+        line += GLYPH_FOR_LUM[(lum + 0.5) | 0];
       }
       // One draw call per row rather than per character — this is what makes a
       // dense grid affordable.

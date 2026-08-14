@@ -101,6 +101,14 @@ function initPixelate() {
       [cells[i], cells[j]] = [cells[j], cells[i]];
     }
 
+    // Delegated rather than one listener per cell: 176 cells per card, and only
+    // ever one of them finishing at a time. Marking a cell spent retires it
+    // from rendering once it has finished travelling.
+    overlay.addEventListener("transitionend", (e) => {
+      if (e.propertyName !== "opacity") return;
+      if (e.target.classList.contains("gone")) e.target.classList.add("spent");
+    });
+
     card.appendChild(overlay);
     states.set(card, { cells, idx: 0, dir: null, raf: null, timer: null });
   });
@@ -124,7 +132,9 @@ function initPixelate() {
         } else {
           if (s.idx <= 0) break;
           s.idx--;
-          s.cells[s.idx].classList.remove("gone");
+          // "spent" has to come off in the same write as "gone", or the cell
+          // stays visibility:hidden and never plays its way back in.
+          s.cells[s.idx].classList.remove("gone", "spent");
         }
       }
 
