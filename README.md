@@ -37,7 +37,8 @@ draw calls a frame instead of ~14,000 DOM nodes, and it touches layout zero time
 not work** — modules are blocked on `file://`. Serve the folder over HTTP:
 
 ```bash
-python -m http.server 8000
+npx serve .
 ```
 
-Then visit http://localhost:8000.
+Then open the URL it prints. Any static file server works; the site needs no
+build step, so there is nothing to compile first.
