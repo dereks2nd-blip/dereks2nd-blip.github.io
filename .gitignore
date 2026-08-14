@@ -1,0 +1,9 @@
+# Local tool + editor state, not part of the site
+.claude/
+.vscode/
+.idea/
+
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store

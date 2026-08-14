@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Derek Song — CS student & builder</title>
+  <meta name="description" content="Derek Song — CS student and builder. Minecraft clients, machine learning, and whatever else is worth shipping at 2am." />
+
+  <!-- Preview card for links pasted into Discord, iMessage, LinkedIn, etc. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Derek Song — CS student & builder" />
+  <meta property="og:description" content="CS student, builder, occasionally awake at 2am shipping something." />
+  <meta property="og:url" content="https://dereks2nd-blip.github.io/" />
+  <meta name="twitter:card" content="summary" />
+
+  <!-- Inline so the tab icon costs no extra request: a grass block in miniature. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23785539'/%3E%3Crect width='16' height='6' fill='%235d9c3c'/%3E%3C/svg%3E" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="world-gen" class="world-gen" role="status" aria-live="polite">
+    <p class="world-gen-line">&gt; generating world<span class="dots">...</span></p>
+    <p class="world-gen-bar"><span id="world-gen-fill"></span></p>
+  </div>
+
+  <!-- Fixed backdrop layers. The sky fades out as the camera descends. -->
+  <div id="sky" class="sky" aria-hidden="true">
+    <div class="sun"></div>
+    <div class="cloud cloud-a"></div>
+    <div class="cloud cloud-b"></div>
+    <div class="cloud cloud-c"></div>
+  </div>
+  <div id="site-canvas" class="site-canvas" aria-hidden="true"></div>
+
+  <header class="hotbar">
+    <a class="hotbar-logo" href="#top" data-scramble-hover>DEREK_SONG</a>
+    <nav>
+      <a href="#projects"><span class="slot-key">1</span>projects</a>
+      <a href="#about"><span class="slot-key">2</span>about</a>
+      <a href="#contact"><span class="slot-key">3</span>contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="top" class="hero">
+      <div class="hero-content">
+        <p class="prompt"><span class="prompt-sign">$</span> whoami</p>
+        <h1><span id="hero-name">Derek Song</span><span class="accent cursor">_</span></h1>
+        <p class="lead">CS student, builder, occasionally awake at 2am shipping something. Aiming for MIT / Caltech, and building a startup in the meantime.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#projects">see what I've built</a>
+          <a class="btn btn-ghost" href="#contact">get in touch</a>
+        </div>
+        <div class="hero-hint">
+          <p>drag the world &middot; scroll to descend</p>
+          <div id="world-picker" class="world-picker" hidden>
+            <button type="button" data-subject="island" class="selected" aria-pressed="true">island</button>
+            <button type="button" data-subject="creeper" aria-pressed="false">creeper</button>
+            <button type="button" data-subject="diamond" aria-pressed="false">diamond</button>
+            <button type="button" data-subject="knot" aria-pressed="false">knot</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <pre class="ascii-wave" data-wave aria-hidden="true"></pre>
+
+    <section id="projects" class="depth projects">
+      <div class="section-head" data-reveal>
+        <span class="tag">[ PROJECTS ]</span>
+        <h2>Things I've built</h2>
+      </div>
+
+      <div class="project-grid">
+        <article class="project-card" data-pixelate style="--i:0">
+          <div class="card-thumb" data-thumb="cabbage" aria-hidden="true"></div>
+          <div class="card-top">
+            <span class="pixel-icon" style="--icon-color:#8bc34a;">CC</span>
+            <span class="card-tag">personal project</span>
+          </div>
+          <h3>Cabbage Client</h3>
+          <p>A free, FPS-optimized Minecraft launcher and custom client for Windows — in the spirit of Feather or Lunar. Handles version management, Microsoft auth, and one-click performance mod packs, plus an in-game HUD with a drag-and-drop editor.</p>
+          <div class="stack">
+            <span>TypeScript</span>
+            <span>Electron</span>
+            <span>React</span>
+            <span>Java</span>
+          </div>
+          <div class="card-links">
+            <a href="https://github.com/dereks2nd-blip/cabbage-client" target="_blank" rel="noopener">code &rarr;</a>
+          </div>
+        </article>
+
+        <article class="project-card" data-pixelate style="--i:1">
+          <div class="card-thumb" data-thumb="torus" aria-hidden="true"></div>
+          <div class="card-top">
+            <span class="pixel-icon" style="--icon-color:#ffb347;">P2</span>
+            <span class="card-tag">placeholder</span>
+          </div>
+          <h3>Project Two</h3>
+          <p>A short description of what this project does and why you built it goes here. Swap this out once the real project is ready.</p>
+          <div class="stack">
+            <span>ML</span>
+            <span>Node</span>
+          </div>
+          <div class="card-links">
+            <a href="#">code &rarr;</a>
+            <a href="#">live &rarr;</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <pre class="ascii-wave" data-wave aria-hidden="true"></pre>
+
+    <section id="about" class="depth about">
+      <div class="section-head" data-reveal>
+        <span class="tag">[ ABOUT ]</span>
+        <h2>A bit more context</h2>
+      </div>
+      <div class="sign" data-reveal>
+        <p>Write a few real sentences here: what you're studying, what got you into programming, what you're working toward (MIT / Caltech, the startup), and what you're into outside of code. Keep it in your own voice — this is the part people actually read.</p>
+      </div>
+    </section>
+
+    <pre class="ascii-wave" data-wave aria-hidden="true"></pre>
+
+    <section id="contact" class="depth contact">
+      <div class="section-head" data-reveal>
+        <span class="tag">[ CONTACT ]</span>
+        <h2>Let's talk</h2>
+      </div>
+      <div class="contact-body" data-reveal>
+        <p>The best way to reach me is email, or find me on GitHub.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="mailto:dereks2nd@gmail.com">email me &rarr;</a>
+          <a class="btn btn-ghost" href="tel:9095518207">call: (909) 551-8207</a>
+        </div>
+        <div class="socials">
+          <a href="https://github.com/dereks2nd-blip" target="_blank" rel="noopener">
+            <span class="pixel-icon" style="--icon-color:#a9a495;">GH</span>GitHub
+          </a>
+          <a href="#">LinkedIn</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <pre class="ascii-cube" aria-hidden="true">   +------+
+  /|     /|
+ +------+ |
+ | |    | |
+ | +----|-+
+ |/     |/
+ +------+</pre>
+    <p>&copy; 2026 Derek Song. Built from scratch, obviously.</p>
+  </footer>
+
+  <script src="script.js"></script>
+  <script type="module" src="world.js"></script>
+</body>
+</html>
