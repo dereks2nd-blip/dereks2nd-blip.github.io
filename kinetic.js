@@ -90,6 +90,13 @@ function initPixelate() {
     const cells = [];
     for (let i = 0; i < COLS * ROWS; i++) {
       const cell = document.createElement("span");
+      // Per-cell scatter direction, spin and duration. Written as one cssText
+      // assignment rather than five setProperty calls because this runs 176
+      // times per card at load. The CSS reads these as unitless multipliers.
+      const rnd = () => (Math.random() * 2 - 1).toFixed(2);
+      cell.style.cssText =
+        `--dx:${rnd()};--dy:${rnd()};--rx:${rnd()};--rz:${rnd()};` +
+        `--dur:${Math.random().toFixed(2)}`;
       overlay.appendChild(cell);
       cells.push(cell);
     }
