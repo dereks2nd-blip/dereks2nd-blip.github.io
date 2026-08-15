@@ -57,29 +57,28 @@ function initHoverScramble() {
   });
 }
 
-/* ---------- Card build ---------- */
+/* ---------- Card materialize ---------- */
 
-// Each card is constructed out of stone blocks that fall in along a diagonal
-// front, land, stand as a complete wall for a beat, and then drop away leaving
-// the finished card behind.
-//
-// The timing is entirely CSS: every block carries its position in the diagonal
-// as --o, and the stylesheet turns that into an animation-delay. That replaced
-// a hand-rolled requestAnimationFrame stepper, which had to run every frame,
-// track a direction and an index per card, and unwind itself on reversal. A
-// class toggle does the same job here, off the main thread, and it replays and
-// reverses for free.
+// Cards start buried under a grid of stone cells that dissolve away in random
+// order, so they resolve out of the rock instead of sliding in. The overlay is
+// built immediately rather than on intersection — otherwise the card would sit
+// fully visible until it was scrolled to.
 function initPixelate() {
   const cards = document.querySelectorAll("[data-pixelate]");
   if (!cards.length) return;
 
-  // Nothing is hidden and no overlay is built, so the cards simply exist.
-  if (prefersReducedMotion) return;
+  if (prefersReducedMotion) {
+    cards.forEach((card) => card.classList.add("materialized"));
+    return;
+  }
 
-  // Fewer, larger blocks than before. At 176 they were too small to read as
-  // blocks at all, which is most of why the effect looked like noise.
-  const COLS = 14;
-  const ROWS = 10;
+  const COLS = 16;
+  const ROWS = 11;
+
+  // Each card keeps its overlay for the life of the page. `idx` is how many
+  // cells are currently cleared, so a reversal just walks that number back
+  // down from wherever it got to instead of restarting.
+  const states = new Map();
 
   cards.forEach((card) => {
     const overlay = document.createElement("div");
@@ -88,34 +87,99 @@ function initPixelate() {
     overlay.style.setProperty("--cols", COLS);
     overlay.style.setProperty("--rows", ROWS);
 
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
-        const cell = document.createElement("span");
-        // Position in the diagonal front, and a stone shade off a fixed
-        // lattice. Both are deterministic: the same block is the same shade
-        // and lands at the same moment every time the card is scrolled past.
-        cell.style.cssText = `--o:${col + row};--tone:${(col * 3 + row * 5) % 4}`;
-        overlay.appendChild(cell);
-      }
+    const cells = [];
+    for (let i = 0; i < COLS * ROWS; i++) {
+      const cell = document.createElement("span");
+      // Per-cell scatter direction, spin and duration. Written as one cssText
+      // assignment rather than five setProperty calls because this runs 176
+      // times per card at load. The CSS reads these as unitless multipliers.
+      const rnd = () => (Math.random() * 2 - 1).toFixed(2);
+      cell.style.cssText =
+        `--dx:${rnd()};--dy:${rnd()};--rx:${rnd()};--rz:${rnd()};` +
+        `--dur:${Math.random().toFixed(2)}`;
+      overlay.appendChild(cell);
+      cells.push(cell);
     }
 
+    // Fisher-Yates, so the dissolve order is genuinely scattered rather than
+    // sweeping in one direction.
+    for (let i = cells.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cells[i], cells[j]] = [cells[j], cells[i]];
+    }
+
+    // Delegated rather than one listener per cell: 176 cells per card, and only
+    // ever one of them finishing at a time. Marking a cell spent retires it
+    // from rendering once it has finished travelling.
+    overlay.addEventListener("transitionend", (e) => {
+      if (e.propertyName !== "opacity") return;
+      if (e.target.classList.contains("gone")) e.target.classList.add("spent");
+    });
+
     card.appendChild(overlay);
-    // Only now is it safe to hide the card's real content: the overlay that
-    // covers it during the build actually exists.
-    card.classList.add("has-build");
+    states.set(card, { cells, idx: 0, dir: null, raf: null, timer: null });
   });
 
+  // Spread across ~55 frames so it reads as a slow build, not a flicker.
+  const run = (card, dir) => {
+    const s = states.get(card);
+    if (!s || s.dir === dir) return;
+
+    s.dir = dir;
+    if (s.raf) cancelAnimationFrame(s.raf);
+
+    const perFrame = Math.ceil(s.cells.length / 55);
+
+    const step = () => {
+      for (let k = 0; k < perFrame; k++) {
+        if (dir === "clear") {
+          if (s.idx >= s.cells.length) break;
+          s.cells[s.idx].classList.add("gone");
+          s.idx++;
+        } else {
+          if (s.idx <= 0) break;
+          s.idx--;
+          // "spent" has to come off in the same write as "gone", or the cell
+          // stays visibility:hidden and never plays its way back in.
+          s.cells[s.idx].classList.remove("gone", "spent");
+        }
+      }
+
+      const done = dir === "clear" ? s.idx >= s.cells.length : s.idx <= 0;
+      if (!done) {
+        s.raf = requestAnimationFrame(step);
+        return;
+      }
+      s.raf = null;
+      // The ring only fires once the last cell is actually gone.
+      if (dir === "clear") card.classList.add("materialized");
+    };
+
+    if (dir === "cover") card.classList.remove("materialized");
+    s.raf = requestAnimationFrame(step);
+  };
+
   if (typeof IntersectionObserver === "undefined") {
-    cards.forEach((card) => card.classList.add("built"));
+    cards.forEach((card) => run(card, "clear"));
     return;
   }
 
-  // No unobserve: scrolling away resets the card so it builds again on the way
-  // back. The per-card offset lives in CSS, off --i, so there is no timer here.
+  // No unobserve: scrolling away re-buries the card so it can resolve again on
+  // the way back.
   const io = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        entry.target.classList.toggle("built", entry.isIntersecting);
+        const card = entry.target;
+        const s = states.get(card);
+        if (s?.timer) window.clearTimeout(s.timer);
+
+        if (!entry.isIntersecting) {
+          run(card, "cover");
+          return;
+        }
+        // Stagger so the two cards don't resolve in lockstep.
+        const delay = Number(card.style.getPropertyValue("--i") || 0) * 240;
+        if (s) s.timer = window.setTimeout(() => run(card, "clear"), delay);
       });
     },
     { threshold: 0.25 }
