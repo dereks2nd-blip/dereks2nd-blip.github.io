@@ -265,12 +265,23 @@ function initSectionBuilds() {
   const io = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
+        entry.target.classList.add("seen");
         entry.target.classList.toggle("assembled", entry.isIntersecting);
       });
     },
     { threshold: 0.2 }
   );
   targets.forEach((el) => io.observe(el));
+
+  // Failsafe. While the covering is up the element gives up its background,
+  // its border and its copy, so anything that stops the observer from ever
+  // delivering would leave a blank hole where the section should be. If a
+  // target has still never been reported on, assemble it unconditionally.
+  window.setTimeout(() => {
+    targets.forEach((el) => {
+      if (!el.classList.contains("seen")) el.classList.add("assembled");
+    });
+  }, 4000);
 }
 
 /* ---------- Card tilt ---------- */

@@ -995,11 +995,14 @@ section {
 
 /* Comes back underneath the completed covering, so the pieces dropping away
    uncover a surface that is already there. */
+/* These delays trail the last piece landing. The plank front finishes at about
+   1.9s and the wall at about 1.7s, so anything that comes back earlier than
+   this shows up through gaps in a covering that is still being built. */
 .sign.building.assembled {
   background-color: var(--wood);
   border-color: var(--wood-dark);
   transition: background-color 0.4s ease-out, border-color 0.4s ease-out;
-  transition-delay: 0.62s;
+  transition-delay: 1.15s;
 }
 
 .contact-body.building.assembled {
@@ -1007,7 +1010,7 @@ section {
   border-color: var(--bevel-dark);
   box-shadow: inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-dark);
   transition: background-color 0.4s ease-out, border-color 0.4s ease-out;
-  transition-delay: 0.5s;
+  transition-delay: 1.0s;
 }
 
 /* Planks arrive from outside the board, so the board has to clip them. */
@@ -1022,7 +1025,7 @@ section {
 
 .sign.building.assembled > p {
   opacity: 1;
-  transition-delay: 0.82s;
+  transition-delay: 1.45s;
 }
 
 /* The nails are hidden until there is a board for them to hold. */
@@ -1052,12 +1055,12 @@ section {
 /* The idle sway still runs, but only once there is an assembled board to sway,
    and the nails are driven in as the last plank lands. */
 .sign.building.assembled[data-reveal].in {
-  animation: sign-sway 6s ease-in-out 1.35s infinite;
+  animation: sign-sway 6s ease-in-out 2.05s infinite;
 }
 
 .sign.building.assembled[data-reveal].in::before,
 .sign.building.assembled[data-reveal].in::after {
-  animation: nail-hit 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) 0.95s backwards;
+  animation: nail-hit 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) 1.55s backwards;
 }
 
 /* Likewise the panel no longer unfolds on its own — the wall does that work. */
@@ -1107,27 +1110,42 @@ section {
 }
 
 /* Slammed in flat from alternating sides, overshooting past true before it
-   seats. --side carries the direction so one rule serves both. */
+   seats. --side carries the direction so one rule serves both.
+
+   Deliberately slow and long-travelled. An earlier pass ran this in 0.85s with
+   the planks entering from just off the edge, and it was indistinguishable
+   from the board simply fading in — the motion has to be big enough and last
+   long enough to register as construction. Each plank is also lighter than the
+   board it lands on and darkens as it seats, so the build is legible against
+   a sign of the same timber. */
 .sign.building.assembled .plank-overlay span {
-  animation: plank-slam 0.85s cubic-bezier(0.2, 0.95, 0.3, 1) both;
-  animation-delay: calc(var(--o, 0) * 90ms);
+  animation: plank-slam 1.15s cubic-bezier(0.16, 0.9, 0.28, 1) both;
+  animation-delay: calc(var(--o, 0) * 150ms);
 }
 
 @keyframes plank-slam {
   0% {
     opacity: 0;
     visibility: visible;
-    transform: translate3d(calc(var(--side, 1) * 125%), 0, 320px)
-      rotateY(calc(var(--side, 1) * 58deg));
+    filter: brightness(1.5);
+    transform: translate3d(calc(var(--side, 1) * 260%), 0, 480px)
+      rotateY(calc(var(--side, 1) * 74deg));
   }
-  22% { opacity: 1; }
-  58% {
+  14% { opacity: 1; }
+  52% {
     opacity: 1;
-    transform: translate3d(calc(var(--side, 1) * -2.5%), 0, 0)
-      rotateY(calc(var(--side, 1) * -4deg));
+    filter: brightness(1.35);
+    transform: translate3d(calc(var(--side, 1) * -4%), 0, 0)
+      rotateY(calc(var(--side, 1) * -7deg));
   }
-  70% { opacity: 1; transform: none; }
-  84% { opacity: 1; transform: none; }
+  /* The bounce back onto its nails. */
+  64% {
+    opacity: 1;
+    transform: translate3d(calc(var(--side, 1) * 1.5%), 0, 0)
+      rotateY(calc(var(--side, 1) * 2deg));
+  }
+  74% { opacity: 1; filter: brightness(1); transform: none; }
+  86% { opacity: 1; transform: none; }
   100% {
     opacity: 0;
     visibility: hidden;
@@ -1135,11 +1153,13 @@ section {
   }
 }
 
-/* Same stone as the world above it. */
+/* Deliberately lighter than the panel it covers. Matching the panel's own grey
+   made the whole build invisible: dark blocks assembling over a dark panel
+   read as nothing happening at all. */
 .slot-overlay span {
   opacity: 0;
   visibility: hidden;
-  background-color: #3b3b3b;
+  background-color: #6d6d6d;
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0 18%, transparent 18%),
     linear-gradient(0deg, rgba(0, 0, 0, 0.42) 0 16%, transparent 16%),
@@ -1152,25 +1172,32 @@ section {
 }
 
 /* Rising off the floor course by course, each block settling under its own
-   weight before the next course lands on it. */
+   weight before the next course lands on it. Slowed and given much more travel
+   for the same reason as the planks: at 0.8s over 170px it was over before it
+   registered. */
 .contact-body.building.assembled .slot-overlay span {
-  animation: slot-stack 0.8s cubic-bezier(0.2, 1, 0.3, 1) both;
-  animation-delay: calc(var(--o, 0) * 55ms);
+  animation: slot-stack 1.05s cubic-bezier(0.16, 0.95, 0.28, 1) both;
+  animation-delay: calc(var(--o, 0) * 88ms);
 }
 
 @keyframes slot-stack {
   0% {
     opacity: 0;
     visibility: visible;
-    transform: translate3d(0, 170px, 210px) rotateX(-62deg) scale(0.8);
+    transform: translate3d(0, 300px, 340px) rotateX(-74deg) scale(0.7);
   }
-  25% { opacity: 1; }
-  62% {
+  18% { opacity: 1; }
+  56% {
     opacity: 1;
-    transform: translate3d(0, -6px, 0) rotateX(5deg) scale(1.03);
+    transform: translate3d(0, -10px, 0) rotateX(8deg) scale(1.05);
   }
-  72% { opacity: 1; transform: none; }
-  84% { opacity: 1; transform: none; }
+  /* Rocks back down onto the course beneath it. */
+  68% {
+    opacity: 1;
+    transform: translate3d(0, 3px, 0) rotateX(-3deg) scale(0.99);
+  }
+  78% { opacity: 1; transform: none; }
+  88% { opacity: 1; transform: none; }
   100% {
     opacity: 0;
     visibility: hidden;
@@ -1265,17 +1292,17 @@ section {
 .contact-body[data-reveal].in > *:nth-child(3) { animation-delay: 0.79s; }
 
 /* Pushed back behind the wall build, so the panel fills only once it stands. */
-.contact-body.building[data-reveal].in > *:nth-child(1) { animation-delay: 1.02s; }
-.contact-body.building[data-reveal].in > *:nth-child(2) { animation-delay: 1.14s; }
-.contact-body.building[data-reveal].in > *:nth-child(3) { animation-delay: 1.26s; }
-.contact-body.building[data-reveal].in .hero-actions .btn:nth-child(1) { animation-delay: 1.19s; }
-.contact-body.building[data-reveal].in .hero-actions .btn:nth-child(2) { animation-delay: 1.29s; }
-.contact-body.building[data-reveal].in .socials a:nth-child(1) { animation-delay: 1.37s; }
-.contact-body.building[data-reveal].in .socials a:nth-child(2) { animation-delay: 1.47s; }
+.contact-body.building[data-reveal].in > *:nth-child(1) { animation-delay: 1.5s; }
+.contact-body.building[data-reveal].in > *:nth-child(2) { animation-delay: 1.62s; }
+.contact-body.building[data-reveal].in > *:nth-child(3) { animation-delay: 1.74s; }
+.contact-body.building[data-reveal].in .hero-actions .btn:nth-child(1) { animation-delay: 1.67s; }
+.contact-body.building[data-reveal].in .hero-actions .btn:nth-child(2) { animation-delay: 1.77s; }
+.contact-body.building[data-reveal].in .socials a:nth-child(1) { animation-delay: 1.85s; }
+.contact-body.building[data-reveal].in .socials a:nth-child(2) { animation-delay: 1.95s; }
 
 /* The torchlight rake lands last, once there is a filled panel to rake across. */
 .contact-body.building[data-reveal].in::before {
-  animation: panel-sweep 0.95s ease-out 1.15s;
+  animation: panel-sweep 0.95s ease-out 1.75s;
 }
 
 /* The buttons and the social links land individually rather than as two solid
