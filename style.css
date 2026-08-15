@@ -1084,6 +1084,18 @@ section {
   line-height: 1.7;
 }
 
+.sign p + p {
+  margin-top: 15px;
+}
+
+/* Marks the two spots still waiting on a real answer. Deliberately loud, so it
+   is impossible to ship this by accident — delete the span, keep the text. */
+.fill {
+  background: rgba(255, 179, 71, 0.5);
+  box-shadow: 0 0 0 2px rgba(120, 60, 0, 0.35);
+  font-weight: 700;
+}
+
 /* ---------- Section builds ---------- */
 
 /* While the covering is up the element lends it its surface: no background, no
