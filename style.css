@@ -350,72 +350,97 @@ section {
   z-index: 5;
   pointer-events: none;
   display: grid;
-  grid-template-columns: repeat(var(--cols, 16), 1fr);
-  grid-template-rows: repeat(var(--rows, 11), 1fr);
-  /* Gives the cells somewhere to travel toward. Safe here in a way it is not
-     on the scroll container: this is a small, contained, non-sticky element. */
-  perspective: 520px;
+  grid-template-columns: repeat(var(--cols, 14), 1fr);
+  grid-template-rows: repeat(var(--rows, 10), 1fr);
+  /* Gives the blocks real depth to fall through. Safe here in a way it is not
+     on the scroll container: this is a small, contained, non-sticky element.
+     The origin sits above centre so blocks high on the card are seen from
+     slightly underneath as they come down, the way a real stack would be. */
+  perspective: 700px;
+  perspective-origin: 50% 38%;
 }
 
-/* Lit from the top-left like the rest of the block work, so each cell reads as
-   a solid cube face rather than a flat square. */
+/* A stone block, not a tinted square: a bright top face, a dark under face, a
+   hard right edge and two pixel specks, so it still reads as a block at the
+   size these are drawn. --tone lifts the base a few percent on a fixed lattice,
+   giving a wall of varied stone that is identical on every replay. */
 .pixel-overlay span {
-  background-color: var(--stone-dark);
-  background-image: linear-gradient(
-    140deg,
-    rgba(255, 255, 255, 0.08),
-    transparent 42%,
-    rgba(0, 0, 0, 0.32)
-  );
-  box-shadow:
-    inset 1px 1px 0 rgba(255, 255, 255, 0.06),
-    inset -1px -1px 0 rgba(0, 0, 0, 0.4);
-  /* Transform and opacity only, so the whole dissolve stays on the compositor
-     and never asks the main thread for a layout. Duration varies per cell from
-     --dur so they do not all leave on the same beat. */
-  transition:
-    transform calc(0.42s + var(--dur, 0) * 0.34s) cubic-bezier(0.3, 0.9, 0.3, 1),
-    opacity calc(0.36s + var(--dur, 0) * 0.3s) ease-out;
-}
-
-/* Blocks tumble off the face of the card toward the viewer instead of simply
-   vanishing. Every cell gets its own scatter direction and spin from the --d*
-   variables kinetic.js writes, because a grid where all 176 cells exit along
-   an identical vector reads as a wipe rather than as rock breaking apart.
-
-   The scale-down is deliberate: it cancels the enlargement that translateZ
-   causes, so a cell never projects outside the card's clip and gets sheared
-   off at the edge on its way out. */
-.pixel-overlay span.gone {
   opacity: 0;
-  transform:
-    translate3d(
-      calc(var(--dx, 0) * 34px),
-      calc(var(--dy, 0) * 34px),
-      64px
-    )
-    rotateX(calc(var(--rx, -1) * 68deg))
-    rotateZ(calc(var(--rz, 1) * 46deg))
-    scale(0.44);
-}
-
-/* Applied once a cell has finished leaving. It is already invisible at that
-   point, so this changes nothing on screen — but an opacity:0 element holding a
-   3D transform still sits in the layer tree and gets recomposited on every
-   scroll and every card tilt, and there are 176 of them per card. Taking them
-   out of rendering entirely is the difference between paying for them forever
-   and paying for them only while they move. kinetic.js removes it if the card
-   is re-buried on the way back up. */
-.pixel-overlay span.spent {
   visibility: hidden;
+  background-color: #3b3b3b;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.17) 0 19%, transparent 19%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.44) 0 17%, transparent 17%),
+    radial-gradient(circle at 28% 38%, rgba(0, 0, 0, 0.3) 0 13%, transparent 13%),
+    radial-gradient(circle at 71% 67%, rgba(255, 255, 255, 0.1) 0 11%, transparent 11%),
+    linear-gradient(
+      rgba(255, 255, 255, calc(var(--tone, 0) * 0.04)),
+      rgba(255, 255, 255, calc(var(--tone, 0) * 0.04))
+    );
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.07),
+    inset -1px 0 0 rgba(0, 0, 0, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
 }
 
-/* A torch-colored ring once the last cell clears. Outline is used instead of
-   box-shadow so it can't clobber the card's bevel. */
-/* Stepped rather than smooth, so the ring collapses in discrete jumps and
-   stays in keeping with everything else here. */
-.project-card.materialized {
-  animation: spawn-flash 0.6s steps(4) 1;
+/* Blocks fall in along a diagonal front, land with a bounce, hold for a beat as
+   a complete wall, then drop away leaving the finished card behind. One pass,
+   so the card is genuinely built rather than merely uncovered.
+
+   --o is the block's position in the diagonal, so the landing front sweeps from
+   the top-left corner across the card. --i offsets the second card so the two
+   never build in lockstep. Every block follows the same path on the same
+   schedule: the order is the effect, and randomising it only reads as noise. */
+.project-card.built .pixel-overlay span {
+  animation: block-build 0.95s cubic-bezier(0.24, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--o, 0) * 26ms + var(--i, 0) * 260ms);
+}
+
+@keyframes block-build {
+  /* Held high above the card and tipped away, seen almost edge-on. */
+  0% {
+    opacity: 0;
+    visibility: visible;
+    transform: translate3d(0, -190px, 260px) rotateX(72deg) scale(0.72);
+  }
+  20% { opacity: 1; }
+  /* Punches past the surface and rocks back — the weight of it landing. */
+  50% {
+    opacity: 1;
+    transform: translate3d(0, 7px, 0) rotateX(-7deg) scale(1.04);
+  }
+  62% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0deg) scale(1);
+  }
+  /* The wall stands complete for a beat before it goes. */
+  74% { opacity: 1; transform: none; }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(0, 0, -40px) scale(0.97);
+  }
+}
+
+/* The card's own content is hidden only once JS has actually built the overlay,
+   so a visitor without JS still gets a completely readable card. */
+.project-card.has-build > *:not(.pixel-overlay) {
+  opacity: 0;
+  transition: opacity 0.45s ease-out;
+}
+
+/* Fades up underneath the standing wall, so the blocks dropping away uncover a
+   card that is already there rather than one that appears after them. */
+.project-card.has-build.built > *:not(.pixel-overlay) {
+  opacity: 1;
+  transition-delay: calc(0.52s + var(--i, 0) * 0.26s);
+}
+
+/* A torch-colored ring once the wall is complete. Outline is used instead of
+   box-shadow so it can't clobber the card's bevel, and it steps rather than
+   fading so it stays in keeping with everything else here. */
+.project-card.built {
+  animation: spawn-flash 0.6s steps(4) calc(0.74s + var(--i, 0) * 0.26s) 1;
 }
 
 @keyframes spawn-flash {
@@ -1192,17 +1217,20 @@ section {
   .contact-body[data-reveal].in .btn,
   .contact-body[data-reveal].in .socials a { animation: none; }
   .section-head.in h2::before { animation: none; }
-  .project-card.materialized { animation: none; }
+  .project-card.built { animation: none; }
 
-  /* No pointer tilt, no tumbling blocks, and no travel on the dissolve. The
-     cells still clear, they just do it without moving. */
+  /* No pointer tilt and no build. The overlay is simply never shown, and the
+     card's content is visible from the outset. */
   .project-card,
   .project-card:not(:hover) {
     transform: none;
     transition: none;
   }
   .project-card::after { display: none; }
-  .pixel-overlay { perspective: none; }
-  .pixel-overlay span { transition: none; }
-  .pixel-overlay span.gone { transform: none; }
+  .pixel-overlay { display: none; }
+  .project-card.has-build > *:not(.pixel-overlay),
+  .project-card.has-build.built > *:not(.pixel-overlay) {
+    opacity: 1;
+    transition: none;
+  }
 }
