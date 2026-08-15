@@ -59,12 +59,23 @@ if (canvas) {
       color: DAYLIGHT_INK,
       fov: 55,
       drag: true,
+      // Half rate. Every frame of this costs a synchronous GPU->CPU readback,
+      // which is a stall the CPU spends waiting rather than working, and it is
+      // by far the most expensive thing on the page. The subject drifts at a
+      // quarter radian a second and the descent is heavily smoothed, so there
+      // is almost nothing here that 60fps resolves and 30 does not — while the
+      // page's own scrolling and animation get the whole budget back.
+      fps: 30,
       build: buildIsland,
       onFrame({ camera, pivot, setColor, state, delta, elapsed }) {
         // Heavier smoothing than feels necessary on paper: the descent should
         // glide behind the reader, not track the scrollbar frame for frame.
         const prevEased = scrollEased;
-        scrollEased += (scrollTarget - scrollEased) * 0.045;
+        // Scaled by delta rather than a flat per-frame fraction. A fixed 0.045
+        // would ease half as fast the moment the frame rate is halved, so the
+        // fps cap would visibly slow the descent instead of just drawing it
+        // less often. The constant is chosen to reproduce the old 0.045 at 60.
+        scrollEased += (scrollTarget - scrollEased) * Math.min(1, delta * 2.7);
         const p = scrollEased;
         // How fast the descent is actually travelling this frame. Taken from
         // the smoothed value rather than raw scroll, so it ramps up and coasts
@@ -94,7 +105,7 @@ if (canvas) {
           // the entire orientation and would wipe a roll set before it. Eased
           // at a seventh of the gap so the camera leans in and rights itself
           // well after the scrolling stops, rather than snapping upright.
-          rollEased += (clamp(vel * 30, -0.22, 0.22) - rollEased) * 0.07;
+          rollEased += (clamp(vel * 30, -0.22, 0.22) - rollEased) * Math.min(1, delta * 4.2);
           camera.rotation.z += rollEased;
 
           // Idle drift, plus a kick proportional to how fast the page is
@@ -200,11 +211,16 @@ document.querySelectorAll("[data-thumb]").forEach((el) => {
       fov: 45,
       autoRotate: true,
       autoRotateSpeed: 0.7,
-      onFrame({ camera }) {
-        // Eased at under a tenth of the gap: the camera trails the pointer
-        // instead of being welded to it, which is what reads as weight.
-        aim.easedX += (aim.x - aim.easedX) * 0.09;
-        aim.easedY += (aim.y - aim.easedY) * 0.09;
+      // A slow rotation in a 471x166 box. Two of these were costing a readback
+      // each per frame for motion nobody can resolve at that size.
+      fps: 24,
+      onFrame({ camera, delta }) {
+        // Eased so the camera trails the pointer instead of being welded to
+        // it, which is what reads as weight. Delta-scaled for the same reason
+        // the descent is: the trail should not lengthen when the rate drops.
+        const k = Math.min(1, delta * 5.4);
+        aim.easedX += (aim.x - aim.easedX) * k;
+        aim.easedY += (aim.y - aim.easedY) * k;
 
         const yaw = aim.easedX * 1.7;
         const radius = 9;

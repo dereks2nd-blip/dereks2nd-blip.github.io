@@ -72,8 +72,11 @@ function initPixelate() {
     return;
   }
 
-  const COLS = 16;
-  const ROWS = 11;
+  // 96 a card rather than 176. Measured, these cells cost roughly twenty times
+  // an ordinary element to restyle, and at 352 of them they were 94% of the
+  // page's entire style-recalculation cost. Larger cells scatter just as well.
+  const COLS = 12;
+  const ROWS = 8;
 
   // Each card keeps its overlay for the life of the page. `idx` is how many
   // cells are currently cleared, so a reversal just walks that number back
@@ -90,13 +93,14 @@ function initPixelate() {
     const cells = [];
     for (let i = 0; i < COLS * ROWS; i++) {
       const cell = document.createElement("span");
-      // Per-cell scatter direction, spin and duration. Written as one cssText
-      // assignment rather than five setProperty calls because this runs 176
-      // times per card at load. The CSS reads these as unitless multipliers.
-      const rnd = () => (Math.random() * 2 - 1).toFixed(2);
+      // The complete exit transform, resolved once here rather than left as
+      // four calc(var()) terms for the style engine to evaluate on every
+      // recalculation. Same scatter, one variable lookup instead of four
+      // arithmetic expressions per cell.
+      const r = () => Math.random() * 2 - 1;
       cell.style.cssText =
-        `--dx:${rnd()};--dy:${rnd()};--rx:${rnd()};--rz:${rnd()};` +
-        `--dur:${Math.random().toFixed(2)}`;
+        `--t-gone:translate3d(${(r() * 34).toFixed(1)}px,${(r() * 34).toFixed(1)}px,64px)` +
+        ` rotateX(${(r() * 68).toFixed(1)}deg) rotateZ(${(r() * 46).toFixed(1)}deg) scale(0.44)`;
       overlay.appendChild(cell);
       cells.push(cell);
     }
@@ -211,19 +215,22 @@ function initSectionBuilds() {
       cols: 1,
       rows: 6,
       // Each plank waits on the one before it and comes in from the opposite
-      // side, so the board is nailed together course by course.
-      vars: (col, row) => `--o:${row};--side:${row % 2 ? -1 : 1}`,
+      // side, so the board is nailed together course by course. The delay is
+      // resolved here rather than as calc(var()) in the stylesheet.
+      vars: (col, row) => `--side:${row % 2 ? -1 : 1};animation-delay:${(row * 0.15).toFixed(2)}s`,
     },
     {
       selector: ".contact-body",
       overlayClass: "slot-overlay",
-      // 24 across against 6 down gives roughly square blocks on this panel. At
-      // 10 they were wide slabs, which reads as a shelf rather than masonry.
-      cols: 24,
-      rows: 6,
+      // 16 across against 5 down still gives roughly square blocks while
+      // cutting the cell count by nearly half; at 10 across they were wide
+      // slabs that read as shelving rather than masonry.
+      cols: 16,
+      rows: 5,
       // Bottom row first: the wall goes up off its floor. The column term is
       // fractional so each course ripples across instead of landing flat.
-      vars: (col, row, rows) => `--o:${(rows - 1 - row + col * 0.12).toFixed(2)}`,
+      vars: (col, row, rows) =>
+        `animation-delay:${((rows - 1 - row + col * 0.16) * 0.088).toFixed(3)}s`,
     },
   ];
 
