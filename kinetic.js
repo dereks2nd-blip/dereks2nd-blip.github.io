@@ -187,6 +187,92 @@ function initPixelate() {
   cards.forEach((card) => io.observe(card));
 }
 
+/* ---------- Section builds ---------- */
+
+// The about sign and the contact panel are assembled rather than revealed. A
+// covering is built out of pieces over the top of them, stands complete for a
+// beat, then drops away leaving the finished thing behind.
+//
+// Each section builds out of a different material and in a different direction,
+// so the two never read as the same trick run twice: the sign is planked
+// together from alternating sides, the panel is stacked up from its floor.
+//
+// The pieces live inside the element rather than in a wrapper, and the element
+// lends them its surface — CSS strips its background and border while the
+// covering is up. Nothing touches the element's own opacity, which is what
+// keeps the overlay inside it visible throughout.
+function initSectionBuilds() {
+  if (prefersReducedMotion) return;
+
+  const SPECS = [
+    {
+      selector: ".sign",
+      overlayClass: "plank-overlay",
+      cols: 1,
+      rows: 6,
+      // Each plank waits on the one before it and comes in from the opposite
+      // side, so the board is nailed together course by course.
+      vars: (col, row) => `--o:${row};--side:${row % 2 ? -1 : 1}`,
+    },
+    {
+      selector: ".contact-body",
+      overlayClass: "slot-overlay",
+      // 24 across against 6 down gives roughly square blocks on this panel. At
+      // 10 they were wide slabs, which reads as a shelf rather than masonry.
+      cols: 24,
+      rows: 6,
+      // Bottom row first: the wall goes up off its floor. The column term is
+      // fractional so each course ripples across instead of landing flat.
+      vars: (col, row, rows) => `--o:${(rows - 1 - row + col * 0.12).toFixed(2)}`,
+    },
+  ];
+
+  const targets = [];
+
+  SPECS.forEach(({ selector, overlayClass, cols, rows, vars }) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      const overlay = document.createElement("div");
+      overlay.className = overlayClass;
+      overlay.setAttribute("aria-hidden", "true");
+      overlay.style.setProperty("--cols", cols);
+      overlay.style.setProperty("--rows", rows);
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const piece = document.createElement("span");
+          piece.style.cssText = vars(col, row, rows);
+          overlay.appendChild(piece);
+        }
+      }
+
+      el.appendChild(overlay);
+      // Only now may CSS strip the element's own surface: the covering that
+      // stands in for it during the build actually exists.
+      el.classList.add("building");
+      targets.push(el);
+    });
+  });
+
+  if (!targets.length) return;
+
+  if (typeof IntersectionObserver === "undefined") {
+    targets.forEach((el) => el.classList.add("assembled"));
+    return;
+  }
+
+  // Toggled, not one-shot, so scrolling back up dismantles it and scrolling
+  // down builds it again.
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        entry.target.classList.toggle("assembled", entry.isIntersecting);
+      });
+    },
+    { threshold: 0.2 }
+  );
+  targets.forEach((el) => io.observe(el));
+}
+
 /* ---------- Card tilt ---------- */
 
 // Turns each project card to face the cursor and drags a torchlight highlight
@@ -408,6 +494,7 @@ export function revealHeroName() {
 export function initKinetic() {
   initReveals();
   initPixelate();
+  initSectionBuilds();
   initCardTilt();
   initHoverScramble();
   initWaves();

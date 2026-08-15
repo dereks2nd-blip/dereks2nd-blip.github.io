@@ -981,6 +981,203 @@ section {
   line-height: 1.7;
 }
 
+/* ---------- Section builds ---------- */
+
+/* While the covering is up the element lends it its surface: no background, no
+   border, no nails. Its own opacity is deliberately untouched — setting that
+   would take the overlay inside it down as well. */
+.sign.building,
+.contact-body.building {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Comes back underneath the completed covering, so the pieces dropping away
+   uncover a surface that is already there. */
+.sign.building.assembled {
+  background-color: var(--wood);
+  border-color: var(--wood-dark);
+  transition: background-color 0.4s ease-out, border-color 0.4s ease-out;
+  transition-delay: 0.62s;
+}
+
+.contact-body.building.assembled {
+  background-color: rgba(38, 38, 38, 0.9);
+  border-color: var(--bevel-dark);
+  box-shadow: inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-dark);
+  transition: background-color 0.4s ease-out, border-color 0.4s ease-out;
+  transition-delay: 0.5s;
+}
+
+/* Planks arrive from outside the board, so the board has to clip them. */
+.sign.building {
+  overflow: hidden;
+}
+
+.sign.building > p {
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+}
+
+.sign.building.assembled > p {
+  opacity: 1;
+  transition-delay: 0.82s;
+}
+
+/* The nails are hidden until there is a board for them to hold. */
+.sign.building::before,
+.sign.building::after {
+  opacity: 0;
+}
+
+.sign.building.assembled::before,
+.sign.building.assembled::after {
+  opacity: 1;
+}
+
+/* The planks are the entrance now, so the hinge drop is retired. */
+.sign.building[data-reveal],
+.sign.building[data-reveal].in {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+.sign.building[data-reveal].in::before,
+.sign.building[data-reveal].in::after {
+  animation: none;
+}
+
+/* The idle sway still runs, but only once there is an assembled board to sway,
+   and the nails are driven in as the last plank lands. */
+.sign.building.assembled[data-reveal].in {
+  animation: sign-sway 6s ease-in-out 1.35s infinite;
+}
+
+.sign.building.assembled[data-reveal].in::before,
+.sign.building.assembled[data-reveal].in::after {
+  animation: nail-hit 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) 0.95s backwards;
+}
+
+/* Likewise the panel no longer unfolds on its own — the wall does that work. */
+.contact-body.building[data-reveal],
+.contact-body.building[data-reveal].in {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+.plank-overlay,
+.slot-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 1), 1fr);
+  grid-template-rows: repeat(var(--rows, 6), 1fr);
+}
+
+.plank-overlay {
+  /* Shallow, so a plank swinging in from the side sweeps past the viewer. */
+  perspective: 900px;
+}
+
+.slot-overlay {
+  perspective: 800px;
+  perspective-origin: 50% 100%;
+}
+
+/* Sawn timber: lit top edge, shadowed underside, and a grain that runs the
+   length of the plank. */
+.plank-overlay span {
+  opacity: 0;
+  visibility: hidden;
+  background-color: var(--wood);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0 12%, transparent 12%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 11%, transparent 11%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(107, 74, 41, 0.32) 0 3px,
+      transparent 3px 13px
+    );
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* Slammed in flat from alternating sides, overshooting past true before it
+   seats. --side carries the direction so one rule serves both. */
+.sign.building.assembled .plank-overlay span {
+  animation: plank-slam 0.85s cubic-bezier(0.2, 0.95, 0.3, 1) both;
+  animation-delay: calc(var(--o, 0) * 90ms);
+}
+
+@keyframes plank-slam {
+  0% {
+    opacity: 0;
+    visibility: visible;
+    transform: translate3d(calc(var(--side, 1) * 125%), 0, 320px)
+      rotateY(calc(var(--side, 1) * 58deg));
+  }
+  22% { opacity: 1; }
+  58% {
+    opacity: 1;
+    transform: translate3d(calc(var(--side, 1) * -2.5%), 0, 0)
+      rotateY(calc(var(--side, 1) * -4deg));
+  }
+  70% { opacity: 1; transform: none; }
+  84% { opacity: 1; transform: none; }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(0, 0, -24px);
+  }
+}
+
+/* Same stone as the world above it. */
+.slot-overlay span {
+  opacity: 0;
+  visibility: hidden;
+  background-color: #3b3b3b;
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0 18%, transparent 18%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.42) 0 16%, transparent 16%),
+    radial-gradient(circle at 32% 42%, rgba(0, 0, 0, 0.26) 0 6%, transparent 6%),
+    radial-gradient(circle at 68% 66%, rgba(255, 255, 255, 0.08) 0 5%, transparent 5%);
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.06),
+    inset -1px 0 0 rgba(0, 0, 0, 0.48),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.48);
+}
+
+/* Rising off the floor course by course, each block settling under its own
+   weight before the next course lands on it. */
+.contact-body.building.assembled .slot-overlay span {
+  animation: slot-stack 0.8s cubic-bezier(0.2, 1, 0.3, 1) both;
+  animation-delay: calc(var(--o, 0) * 55ms);
+}
+
+@keyframes slot-stack {
+  0% {
+    opacity: 0;
+    visibility: visible;
+    transform: translate3d(0, 170px, 210px) rotateX(-62deg) scale(0.8);
+  }
+  25% { opacity: 1; }
+  62% {
+    opacity: 1;
+    transform: translate3d(0, -6px, 0) rotateX(5deg) scale(1.03);
+  }
+  72% { opacity: 1; transform: none; }
+  84% { opacity: 1; transform: none; }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(0, 0, -34px) scale(0.98);
+  }
+}
+
 /* ---------- Contact ---------- */
 
 .contact-body {
@@ -1050,19 +1247,36 @@ section {
   100% { opacity: 0; transform: translateX(110%); }
 }
 
-/* Above the sweep so the copy never dims as it passes. */
-.contact-body > * {
+/* Above the sweep so the copy never dims as it passes. The build overlay is
+   excluded throughout: it is a sibling of the copy but not part of it, and
+   these rules would otherwise stack it below the text it has to cover and pop
+   it in like a paragraph. */
+.contact-body > *:not(.slot-overlay) {
   position: relative;
   z-index: 2;
 }
 
-.contact-body[data-reveal].in > * {
+.contact-body[data-reveal].in > *:not(.slot-overlay) {
   animation: slot-pop 0.5s cubic-bezier(0.2, 1.35, 0.4, 1) backwards;
 }
 
 .contact-body[data-reveal].in > *:nth-child(1) { animation-delay: 0.55s; }
 .contact-body[data-reveal].in > *:nth-child(2) { animation-delay: 0.67s; }
 .contact-body[data-reveal].in > *:nth-child(3) { animation-delay: 0.79s; }
+
+/* Pushed back behind the wall build, so the panel fills only once it stands. */
+.contact-body.building[data-reveal].in > *:nth-child(1) { animation-delay: 1.02s; }
+.contact-body.building[data-reveal].in > *:nth-child(2) { animation-delay: 1.14s; }
+.contact-body.building[data-reveal].in > *:nth-child(3) { animation-delay: 1.26s; }
+.contact-body.building[data-reveal].in .hero-actions .btn:nth-child(1) { animation-delay: 1.19s; }
+.contact-body.building[data-reveal].in .hero-actions .btn:nth-child(2) { animation-delay: 1.29s; }
+.contact-body.building[data-reveal].in .socials a:nth-child(1) { animation-delay: 1.37s; }
+.contact-body.building[data-reveal].in .socials a:nth-child(2) { animation-delay: 1.47s; }
+
+/* The torchlight rake lands last, once there is a filled panel to rake across. */
+.contact-body.building[data-reveal].in::before {
+  animation: panel-sweep 0.95s ease-out 1.15s;
+}
 
 /* The buttons and the social links land individually rather than as two solid
    rows, which is the difference between a panel filling and a panel appearing. */
@@ -1205,4 +1419,11 @@ section {
   .pixel-overlay { perspective: none; }
   .pixel-overlay span { transition: none; }
   .pixel-overlay span.gone { transform: none; }
+
+  /* initSectionBuilds bails out before creating these, so nothing here should
+     ever match. Kept as a backstop in case the setting changes after load. */
+  .plank-overlay,
+  .slot-overlay { display: none; }
+  .sign.building,
+  .contact-body.building { background-color: revert; border-color: revert; }
 }
