@@ -163,28 +163,39 @@ export function createAsciiScene(options) {
 
   // Drag accumulates into state rather than moving the camera directly, so
   // scroll-driven positioning and pointer input can both feed one final pose.
-  const state = { dragYaw: 0, dragPitch: 0 };
+  const state = { dragYaw: 0, dragPitch: 0, dragging: false };
+  // Carried between frames so a flick keeps turning after the pointer lifts.
+  let yawVel = 0;
+  let pitchVel = 0;
+
   if (drag && !prefersReducedMotion) {
-    let active = false;
     let lastX = 0;
     let lastY = 0;
 
     container.addEventListener("pointerdown", (e) => {
-      active = true;
+      state.dragging = true;
+      // Grabbing kills any momentum, the way catching a spinning globe does.
+      yawVel = 0;
+      pitchVel = 0;
       lastX = e.clientX;
       lastY = e.clientY;
       container.setPointerCapture(e.pointerId);
       container.classList.add("grabbing");
     });
     container.addEventListener("pointermove", (e) => {
-      if (!active) return;
-      state.dragYaw += (e.clientX - lastX) * 0.006;
-      state.dragPitch = clamp(state.dragPitch + (e.clientY - lastY) * 0.003, -0.6, 0.6);
+      if (!state.dragging) return;
+      const dYaw = (e.clientX - lastX) * 0.006;
+      const dPitch = (e.clientY - lastY) * 0.003;
+      state.dragYaw += dYaw;
+      state.dragPitch = clamp(state.dragPitch + dPitch, -0.6, 0.6);
+      // The last movement is the throw velocity if the pointer lifts now.
+      yawVel = dYaw;
+      pitchVel = dPitch;
       lastX = e.clientX;
       lastY = e.clientY;
     });
     const release = (e) => {
-      active = false;
+      state.dragging = false;
       container.classList.remove("grabbing");
       if (e.pointerId !== undefined && container.hasPointerCapture?.(e.pointerId)) {
         container.releasePointerCapture(e.pointerId);
@@ -271,6 +282,18 @@ export function createAsciiScene(options) {
     lastFrame = now;
 
     const delta = clock.getDelta();
+
+    // Momentum: released spin decays over about a second rather than stopping
+    // dead, which is most of what makes the world feel like an object with
+    // weight instead of a value bound to the cursor.
+    if (!state.dragging && (yawVel !== 0 || pitchVel !== 0)) {
+      state.dragYaw += yawVel;
+      state.dragPitch = clamp(state.dragPitch + pitchVel, -0.6, 0.6);
+      yawVel *= 0.93;
+      pitchVel *= 0.93;
+      if (Math.abs(yawVel) < 1e-5) yawVel = 0;
+      if (Math.abs(pitchVel) < 1e-5) pitchVel = 0;
+    }
 
     if (autoRotate && !prefersReducedMotion) {
       pivot.rotation.y += delta * autoRotateSpeed;

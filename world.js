@@ -44,6 +44,10 @@ if (canvas) {
     const DAYLIGHT_INK = "#26331a";
     const TORCH_INK = "#ffb347";
     let lastInkStep = -1;
+    // Camera bank, smoothed separately from the descent so it lags behind it.
+    let rollEased = 0;
+    // Drives the scale-in when the subject is swapped. Starts finished.
+    let popT = 1;
 
     const scene = createAsciiScene({
       container: canvas,
@@ -56,11 +60,16 @@ if (canvas) {
       fov: 55,
       drag: true,
       build: buildIsland,
-      onFrame({ camera, pivot, setColor, state, delta }) {
+      onFrame({ camera, pivot, setColor, state, delta, elapsed }) {
         // Heavier smoothing than feels necessary on paper: the descent should
         // glide behind the reader, not track the scrollbar frame for frame.
+        const prevEased = scrollEased;
         scrollEased += (scrollTarget - scrollEased) * 0.045;
         const p = scrollEased;
+        // How fast the descent is actually travelling this frame. Taken from
+        // the smoothed value rather than raw scroll, so it ramps up and coasts
+        // down instead of spiking on every wheel notch.
+        const vel = p - prevEased;
 
         // Spiral descent: the camera swings around the axis while dropping, so
         // the walls slide past instead of sitting still.
@@ -80,7 +89,33 @@ if (canvas) {
         // the downward travel once the shaft closes in.
         camera.lookAt(0, camY - 4 + state.dragPitch * 8, 0);
 
-        if (!prefersReducedMotion) pivot.rotation.y += delta * 0.25;
+        if (!prefersReducedMotion) {
+          // Bank into the descent. This has to come after lookAt, which writes
+          // the entire orientation and would wipe a roll set before it. Eased
+          // at a seventh of the gap so the camera leans in and rights itself
+          // well after the scrolling stops, rather than snapping upright.
+          rollEased += (clamp(vel * 30, -0.22, 0.22) - rollEased) * 0.07;
+          camera.rotation.z += rollEased;
+
+          // Idle drift, plus a kick proportional to how fast the page is
+          // moving — the world spins up when you scroll and coasts back down.
+          pivot.rotation.y += delta * 0.25 + vel * 9;
+
+          // Never completely still. A slow float and two lazy out-of-phase
+          // tilts, so the subject always looks suspended rather than mounted.
+          pivot.position.y = Math.sin(elapsed * 0.7) * 0.45;
+          pivot.rotation.x = Math.sin(elapsed * 0.43) * 0.06;
+          pivot.rotation.z = Math.cos(elapsed * 0.31) * 0.04;
+
+          // Scale-in after a subject swap, overshooting once before settling.
+          if (popT < 1) {
+            popT = Math.min(1, popT + delta * 2.6);
+            const c1 = 1.70158;
+            const c3 = c1 + 1;
+            const eased = 1 + c3 * Math.pow(popT - 1, 3) + c1 * Math.pow(popT - 1, 2);
+            pivot.scale.setScalar(0.25 + 0.75 * eased);
+          }
+        }
 
         // Daylight ink turns to torchlight gradually across most of the page,
         // so the world keeps resolving the further down you read. These are
@@ -109,6 +144,8 @@ if (canvas) {
         const btn = e.target.closest("[data-subject]");
         if (!btn || !SUBJECTS[btn.dataset.subject]) return;
         scene.setSubject(SUBJECTS[btn.dataset.subject]);
+        // Restart the scale-in so a swap reads as the new subject arriving.
+        popT = 0;
         picker.querySelectorAll("[data-subject]").forEach((b) => {
           b.classList.toggle("selected", b === btn);
           b.setAttribute("aria-pressed", String(b === btn));
@@ -130,6 +167,29 @@ const THUMBS = { cabbage: buildCabbage, torus: buildTorus };
 document.querySelectorAll("[data-thumb]").forEach((el) => {
   const build = THUMBS[el.dataset.thumb];
   if (!build) return;
+
+  // The camera orbits the model as the pointer crosses the card, so the
+  // thumbnail is a real object being looked around rather than a looping
+  // animation playing in a box. The whole card is the input surface, not just
+  // the picture: the model should already be turning by the time the pointer
+  // arrives at it, which is what ties it to the card's own tilt.
+  const card = el.closest(".project-card") || el;
+  const aim = { x: 0, y: 0, easedX: 0, easedY: 0 };
+
+  if (!prefersReducedMotion) {
+    card.addEventListener("pointermove", (e) => {
+      const r = card.getBoundingClientRect();
+      aim.x = clamp((e.clientX - r.left) / r.width - 0.5, -0.5, 0.5);
+      aim.y = clamp((e.clientY - r.top) / r.height - 0.5, -0.5, 0.5);
+    }, { passive: true });
+
+    // Drifts back to centre rather than freezing wherever the pointer left.
+    card.addEventListener("pointerleave", () => {
+      aim.x = 0;
+      aim.y = 0;
+    });
+  }
+
   try {
     createAsciiScene({
       container: el,
@@ -141,7 +201,18 @@ document.querySelectorAll("[data-thumb]").forEach((el) => {
       autoRotate: true,
       autoRotateSpeed: 0.7,
       onFrame({ camera }) {
-        camera.position.set(0, 2.5, 9);
+        // Eased at under a tenth of the gap: the camera trails the pointer
+        // instead of being welded to it, which is what reads as weight.
+        aim.easedX += (aim.x - aim.easedX) * 0.09;
+        aim.easedY += (aim.y - aim.easedY) * 0.09;
+
+        const yaw = aim.easedX * 1.7;
+        const radius = 9;
+        camera.position.set(
+          Math.sin(yaw) * radius,
+          2.5 + aim.easedY * 5.5,
+          Math.cos(yaw) * radius
+        );
         camera.lookAt(0, 0, 0);
       },
     });
