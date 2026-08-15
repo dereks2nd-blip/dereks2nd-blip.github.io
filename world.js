@@ -56,6 +56,12 @@ if (canvas) {
       // Affordable now that rows are painted to canvas rather than built as
       // DOM text, and the fine grid is what makes the geometry legible.
       fontSize: 10,
+      // 1x. This layer covers the whole viewport, so it is by far the largest
+      // thing being drawn; at 2x it cost 9ms a frame purely to paint. The grid
+      // keeps exactly the same number of characters — each glyph is simply
+      // rasterised once rather than twice over, which on a background sitting
+      // at half opacity behind the content is not a difference you can see.
+      maxDpr: 1,
       color: DAYLIGHT_INK,
       fov: 55,
       drag: true,
