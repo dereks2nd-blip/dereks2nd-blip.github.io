@@ -15,6 +15,18 @@
 
   --font-display: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Hand-placed 16x16 pixel textures, inlined as SVG so they cost no request
+     and never blur: shape-rendering keeps the edges hard, and every surface
+     that uses one also sets image-rendering: pixelated for the upscale.
+     Layered gradients can shade a block, but only a real texture gives it
+     grain — that difference is most of what separated these from looking
+     like coloured rectangles. */
+  --tex-stone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%23808080'/%3E%3Cg fill='%236e6e6e'%3E%3Crect x='1' y='2' width='2' height='1'/%3E%3Crect x='5' y='1' width='1' height='2'/%3E%3Crect x='9' y='3' width='2' height='1'/%3E%3Crect x='13' y='1' width='1' height='1'/%3E%3Crect x='3' y='6' width='1' height='2'/%3E%3Crect x='7' y='7' width='2' height='1'/%3E%3Crect x='11' y='6' width='1' height='1'/%3E%3Crect x='14' y='8' width='1' height='2'/%3E%3Crect x='2' y='10' width='2' height='1'/%3E%3Crect x='6' y='11' width='1' height='1'/%3E%3Crect x='10' y='12' width='2' height='1'/%3E%3Crect x='4' y='14' width='1' height='1'/%3E%3Crect x='8' y='9' width='1' height='1'/%3E%3C/g%3E%3Cg fill='%23949494'%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='8' y='2' width='1' height='1'/%3E%3Crect x='12' y='4' width='2' height='1'/%3E%3Crect x='1' y='7' width='1' height='1'/%3E%3Crect x='6' y='4' width='1' height='1'/%3E%3Crect x='10' y='8' width='1' height='1'/%3E%3Crect x='14' y='12' width='1' height='1'/%3E%3Crect x='5' y='12' width='1' height='1'/%3E%3Crect x='9' y='14' width='2' height='1'/%3E%3Crect x='0' y='13' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* Two courses of boards with the seam between them, vertical grain, and a
+     few lighter streaks. */
+  --tex-wood: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%23a97c50'/%3E%3Cg fill='%238d6540'%3E%3Crect x='0' y='0' width='16' height='1'/%3E%3Crect x='2' y='1' width='1' height='7'/%3E%3Crect x='7' y='1' width='1' height='7'/%3E%3Crect x='12' y='2' width='1' height='6'/%3E%3Crect x='0' y='8' width='16' height='1'/%3E%3Crect x='4' y='9' width='1' height='7'/%3E%3Crect x='9' y='9' width='1' height='7'/%3E%3Crect x='14' y='10' width='1' height='6'/%3E%3C/g%3E%3Cg fill='%23bd8d5e'%3E%3Crect x='5' y='2' width='1' height='5'/%3E%3Crect x='10' y='3' width='1' height='4'/%3E%3Crect x='1' y='10' width='1' height='5'/%3E%3Crect x='11' y='11' width='1' height='4'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 * {
@@ -31,10 +43,52 @@ body {
   color: var(--text);
   font-family: var(--font-body);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
   color: inherit;
+}
+
+::selection {
+  background: var(--torch);
+  color: #1b1b1b;
+}
+
+/* One visible focus treatment everywhere, so keyboard users get the same
+   torch-coloured affordance the pointer gets on hover. */
+:focus-visible {
+  outline: 2px solid var(--torch);
+  outline-offset: 3px;
+}
+
+/* The default OS scrollbar was the last piece of chrome on the page that
+   looked like it came from somewhere else. */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--stone-dark);
+  border-left: 2px solid var(--bevel-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--panel);
+  border: 2px solid var(--bevel-dark);
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-light),
+    inset -1px -1px 0 var(--bevel-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f3f;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--stone-dark);
 }
 
 .accent {
@@ -140,29 +194,67 @@ a {
   display: block;
 }
 
+/* Haze along the bottom of the sky, so the gradient resolves into distance
+   instead of simply stopping where the section ends. */
+.sky::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 34vh;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.3));
+  pointer-events: none;
+}
+
+/* Square, like the real one. Four rings of glow at falling opacity give it
+   atmosphere without a blur, which would read as soft against a pixel sky. */
 .sun {
   position: absolute;
   top: 12vh;
   right: 8vw;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   background: #ffe14d;
   box-shadow:
-    0 0 0 6px rgba(255, 225, 77, 0.18),
-    0 0 0 14px rgba(255, 225, 77, 0.08);
-  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    0 0 0 4px #ffea86,
+    0 0 0 12px rgba(255, 225, 77, 0.26),
+    0 0 0 26px rgba(255, 225, 77, 0.1),
+    0 0 60px 24px rgba(255, 225, 77, 0.2);
+  animation: sun-pulse 7s ease-in-out infinite;
 }
 
+@keyframes sun-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.14); }
+}
+
+/* Blockier than before — offset squares rather than a smear — and drifting.
+   Static clouds were the main reason the sky read as a backdrop rather than
+   as weather. */
 .cloud {
   position: absolute;
+  left: 0;
   background: #ffffff;
-  opacity: 0.85;
-  box-shadow: 0 10px 0 -2px #ffffff, 24px 6px 0 -4px #ffffff, -20px 8px 0 -6px #ffffff;
+  opacity: 0.9;
+  box-shadow:
+    20px 0 0 0 #ffffff,
+    40px 0 0 -3px #ffffff,
+    -20px 0 0 -4px #ffffff,
+    10px -11px 0 -2px #ffffff,
+    30px -9px 0 -5px #ffffff,
+    -6px 11px 0 -4px #ffffff;
+  animation: cloud-drift linear infinite;
 }
 
-.cloud-a { top: 18vh; left: 8%; width: 92px; height: 26px; }
-.cloud-b { top: 30vh; left: 62%; width: 70px; height: 20px; }
-.cloud-c { top: 9vh; left: 40%; width: 56px; height: 18px; opacity: 0.6; }
+/* Negative delays start them already spread across the sky rather than all
+   entering together from the left edge. */
+@keyframes cloud-drift {
+  from { transform: translateX(-16vw); }
+  to { transform: translateX(116vw); }
+}
+
+.cloud-a { top: 18vh; width: 92px; height: 26px; animation-duration: 95s; animation-delay: -22s; }
+.cloud-b { top: 30vh; width: 70px; height: 20px; animation-duration: 135s; animation-delay: -74s; opacity: 0.75; }
+.cloud-c { top: 9vh; width: 56px; height: 18px; animation-duration: 170s; animation-delay: -118s; opacity: 0.6; }
 
 /* ---------- Hotbar nav ---------- */
 
@@ -174,9 +266,14 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: var(--panel);
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.92), rgba(51, 51, 51, 0.92)),
+    var(--tex-stone);
+  background-size: 100% 100%, 36px 36px;
+  image-rendering: pixelated;
   border-bottom: 3px solid var(--bevel-dark);
-  box-shadow: inset 0 2px 0 var(--bevel-light);
+  box-shadow: inset 0 2px 0 var(--bevel-light), 0 4px 12px -4px rgba(0, 0, 0, 0.6);
   padding: 12px 24px;
 }
 
@@ -357,16 +454,17 @@ section {
   perspective: 520px;
 }
 
-/* Lit from the top-left like the rest of the block work, so each cell reads as
-   a solid cube face rather than a flat square. */
+/* Real stone grain under a lit top face and a shadowed underside, with a dark
+   tint layer between them to sink it to the card's depth. */
 .pixel-overlay span {
   background-color: var(--stone-dark);
-  background-image: linear-gradient(
-    140deg,
-    rgba(255, 255, 255, 0.08),
-    transparent 42%,
-    rgba(0, 0, 0, 0.32)
-  );
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0 16%, transparent 16%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.45) 0 14%, transparent 14%),
+    linear-gradient(rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.46)),
+    var(--tex-stone);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
+  image-rendering: pixelated;
   box-shadow:
     inset 1px 1px 0 rgba(255, 255, 255, 0.06),
     inset -1px -1px 0 rgba(0, 0, 0, 0.4);
@@ -727,7 +825,12 @@ section {
 .project-card {
   position: relative;
   overflow: hidden;
-  background: var(--panel);
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(rgba(51, 51, 51, 0.9), rgba(51, 51, 51, 0.9)),
+    var(--tex-stone);
+  background-size: 100% 100%, 40px 40px;
+  image-rendering: pixelated;
   border: 2px solid var(--bevel-dark);
   box-shadow:
     inset 3px 3px 0 var(--bevel-light),
@@ -900,11 +1003,21 @@ section {
 .sign {
   max-width: 820px;
   margin: 0 auto;
-  background: var(--wood);
+  background-color: var(--wood);
+  /* Grain at a coarse tile, with a soft top-down light so the board is not
+     evenly lit across its whole face. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 30%, rgba(0, 0, 0, 0.16)),
+    var(--tex-wood);
+  background-size: 100% 100%, 56px 56px;
+  image-rendering: pixelated;
   border: 6px solid var(--wood-dark);
   border-radius: 2px;
   padding: 28px 32px;
   position: relative;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.07),
+    0 6px 0 -1px rgba(0, 0, 0, 0.45);
 }
 
 .sign::before,
@@ -986,9 +1099,13 @@ section {
 /* While the covering is up the element lends it its surface: no background, no
    border, no nails. Its own opacity is deliberately untouched — setting that
    would take the overlay inside it down as well. */
+/* The texture has to go with the colour. Leaving background-image set would
+   keep the surface fully visible underneath a covering that is meant to be
+   standing in for it. */
 .sign.building,
 .contact-body.building {
   background-color: transparent;
+  background-image: none;
   border-color: transparent;
   box-shadow: none;
 }
@@ -1000,13 +1117,22 @@ section {
    this shows up through gaps in a covering that is still being built. */
 .sign.building.assembled {
   background-color: var(--wood);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 30%, rgba(0, 0, 0, 0.16)),
+    var(--tex-wood);
   border-color: var(--wood-dark);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.07),
+    0 6px 0 -1px rgba(0, 0, 0, 0.45);
   transition: background-color 0.4s ease-out, border-color 0.4s ease-out;
   transition-delay: 1.15s;
 }
 
 .contact-body.building.assembled {
   background-color: rgba(38, 38, 38, 0.9);
+  background-image:
+    linear-gradient(rgba(38, 38, 38, 0.88), rgba(38, 38, 38, 0.88)),
+    var(--tex-stone);
   border-color: var(--bevel-dark);
   box-shadow: inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-dark);
   transition: background-color 0.4s ease-out, border-color 0.4s ease-out;
@@ -1099,13 +1225,11 @@ section {
   visibility: hidden;
   background-color: var(--wood);
   background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0 12%, transparent 12%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 11%, transparent 11%),
-    repeating-linear-gradient(
-      90deg,
-      rgba(107, 74, 41, 0.32) 0 3px,
-      transparent 3px 13px
-    );
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0 10%, transparent 10%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.34) 0 9%, transparent 9%),
+    var(--tex-wood);
+  background-size: 100% 100%, 100% 100%, 30px 30px;
+  image-rendering: pixelated;
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.4);
 }
 
@@ -1161,10 +1285,11 @@ section {
   visibility: hidden;
   background-color: #6d6d6d;
   background-image:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0 18%, transparent 18%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.42) 0 16%, transparent 16%),
-    radial-gradient(circle at 32% 42%, rgba(0, 0, 0, 0.26) 0 6%, transparent 6%),
-    radial-gradient(circle at 68% 66%, rgba(255, 255, 255, 0.08) 0 5%, transparent 5%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0 16%, transparent 16%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.4) 0 14%, transparent 14%),
+    var(--tex-stone);
+  background-size: 100% 100%, 100% 100%, 26px 26px;
+  image-rendering: pixelated;
   box-shadow:
     inset 1px 0 0 rgba(255, 255, 255, 0.06),
     inset -1px 0 0 rgba(0, 0, 0, 0.48),
@@ -1213,7 +1338,14 @@ section {
   overflow: hidden;
   max-width: 820px;
   margin: 0 auto;
-  background: rgba(38, 38, 38, 0.9);
+  background-color: rgba(38, 38, 38, 0.9);
+  /* Stone grain under a near-opaque tint: enough to catch the light without
+     competing with the copy sitting on it. */
+  background-image:
+    linear-gradient(rgba(38, 38, 38, 0.88), rgba(38, 38, 38, 0.88)),
+    var(--tex-stone);
+  background-size: 100% 100%, 44px 44px;
+  image-rendering: pixelated;
   border: 2px solid var(--bevel-dark);
   box-shadow: inset 2px 2px 0 var(--bevel-light), inset -2px -2px 0 var(--bevel-dark);
   border-radius: 2px;
@@ -1411,6 +1543,8 @@ section {
   html { scroll-behavior: auto; }
   .world-gen { transition: none; }
   .dots { animation: none; }
+  .cloud { animation: none; }
+  .sun { animation: none; }
   .btn { transition: none; }
   .cursor { animation: none; }
   .section-head h2::before { animation: none; }
